@@ -15,12 +15,15 @@ if config.config_file_name is not None:
 settings = get_settings()
 config.set_main_option("sqlalchemy.url", settings.DATABASE_URL)
 
-# placeholder target metadata for future domain models
-# target_metadata = Base.metadata
+# target metadata: import the Base metadata from the app so Alembic can autogenerate
+from backend.app.db.base import Base
+
+# provide the application's metadata to Alembic
+target_metadata = Base.metadata
 
 def run_migrations_offline() -> None:
     url = config.get_main_option("sqlalchemy.url")
-    context.configure(url=url, literal_binds=True, dialect_opts={"paramstyle": "named"})
+    context.configure(url=url, target_metadata=target_metadata, literal_binds=True, dialect_opts={"paramstyle": "named"})
     with context.begin_transaction():
         context.run_migrations()
 
@@ -33,7 +36,7 @@ def run_migrations_online() -> None:
     )
 
     with connectable.connect() as connection:
-        context.configure(connection=connection)
+        context.configure(connection=connection, target_metadata=target_metadata)
         with context.begin_transaction():
             context.run_migrations()
 

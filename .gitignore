@@ -25,6 +25,9 @@ dist/
 *.egg-info/
 coverage.xml
 htmlcov/
+.next/
+.turbo/
+node_modules/
 
 # Docker / local data
 postgres_data/
