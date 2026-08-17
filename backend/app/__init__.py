@@ -1,0 +1,1 @@
+"""AVIP application package."""
