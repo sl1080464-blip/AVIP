@@ -21,7 +21,7 @@ def upgrade():
         sa.Column('id', sa.Integer, primary_key=True),
         sa.Column('username', sa.String(80), nullable=False, unique=True),
         sa.Column('email', sa.String(200), nullable=False, unique=True),
-        sa.Column('is_active', sa.Boolean, nullable=False, server_default=sa.text('1')),
+        sa.Column('is_active', sa.Boolean, nullable=False, server_default=sa.text('true')),
         sa.Column('created_at', sa.DateTime(), nullable=False),
     )
 
@@ -129,7 +129,7 @@ def upgrade():
         sa.Column('event_id', sa.Integer, sa.ForeignKey('events.id'), nullable=False),
         sa.Column('level', sa.String(30), nullable=True),
         sa.Column('message', sa.String(255), nullable=False),
-        sa.Column('acknowledged', sa.Boolean, nullable=False, server_default=sa.text('0')),
+        sa.Column('acknowledged', sa.Boolean, nullable=False, server_default=sa.text('false')),
         sa.Column('created_at', sa.DateTime(), nullable=False),
     )
 
