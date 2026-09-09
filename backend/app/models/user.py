@@ -3,7 +3,7 @@ from __future__ import annotations
 from datetime import datetime, timezone
 from typing import TYPE_CHECKING
 
-from sqlalchemy import Boolean, ForeignKey, String, Table
+from sqlalchemy import Boolean, Column, ForeignKey, String, Table
 from sqlalchemy.orm import Mapped, mapped_column, relationship
 
 from backend.app.db.base import Base
@@ -15,8 +15,8 @@ if TYPE_CHECKING:
 user_roles = Table(
     "user_roles",
     Base.metadata,
-    mapped_column("user_id", ForeignKey("users.id")),
-    mapped_column("role_id", ForeignKey("roles.id")),
+    Column("user_id", ForeignKey("users.id"), primary_key=True),
+    Column("role_id", ForeignKey("roles.id"), primary_key=True),
 )
 
 

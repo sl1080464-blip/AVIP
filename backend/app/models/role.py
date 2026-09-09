@@ -20,4 +20,6 @@ class Role(Base):
     description: Mapped[str | None] = mapped_column(String(255), nullable=True)
     created_at: Mapped[datetime] = mapped_column(default=lambda: datetime.now(timezone.utc))
 
-    users: Mapped[list["User"]] = relationship("User", secondary="user_roles", back_populates="roles")
+    users: Mapped[list["User"]] = relationship(
+        "User", secondary="user_roles", back_populates="roles"
+    )
