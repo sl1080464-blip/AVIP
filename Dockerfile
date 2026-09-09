@@ -8,6 +8,7 @@ WORKDIR /app
 
 COPY pyproject.toml ./
 COPY backend ./backend
+COPY ai ./ai
 
 RUN pip install --upgrade pip && \
     pip install -e .
