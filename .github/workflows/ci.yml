@@ -8,6 +8,33 @@ on:
 jobs:
   quality:
     runs-on: ubuntu-latest
+    services:
+      postgres:
+        image: postgres:16-alpine
+        env:
+          POSTGRES_DB: avip
+          POSTGRES_USER: avip
+          POSTGRES_PASSWORD: avip
+        ports:
+          - 5432:5432
+        options: >-
+          --health-cmd="pg_isready -U avip -d avip"
+          --health-interval=10s
+          --health-timeout=5s
+          --health-retries=5
+      redis:
+        image: redis:7-alpine
+        ports:
+          - 6379:6379
+        options: >-
+          --health-cmd="redis-cli ping"
+          --health-interval=10s
+          --health-timeout=5s
+          --health-retries=5
+    env:
+      DATABASE_URL: postgresql+psycopg://avip:avip@localhost:5432/avip
+      REDIS_URL: redis://localhost:6379/0
+      AUTH_SECRET_KEY: avip-ci-secret-key-change-before-production
     steps:
       - name: Checkout repository
         uses: actions/checkout@v4
@@ -25,5 +52,24 @@ jobs:
       - name: Lint
         run: ruff check backend
 
+      - name: Apply database migrations
+        run: alembic -c alembic.ini upgrade head
+
+      - name: Verify database schema
+        run: alembic -c alembic.ini check
+
       - name: Tests
         run: pytest backend/tests --maxfail=1 --disable-warnings
+
+      - name: Setup Node
+        uses: actions/setup-node@v4
+        with:
+          node-version: "20"
+          cache: npm
+          cache-dependency-path: frontend/package-lock.json
+
+      - name: Build frontend
+        working-directory: frontend
+        run: |
+          npm ci
+          npm run build
