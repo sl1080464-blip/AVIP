@@ -58,10 +58,30 @@ def test_duplicate_camera_name_returns_conflict(client: TestClient) -> None:
 
 
 def test_detections_endpoint(client: TestClient) -> None:
-    response = client.get("/api/v1/detections")
+    camera = client.post(
+        "/api/v1/cameras",
+        json={"name": "Detection Camera", "stream_url": "rtsp://camera-detection/stream"},
+    ).json()
+    response = client.post(
+        "/api/v1/detections/demo",
+        params={"camera_id": camera["id"]},
+    )
+    assert response.status_code == 201
+    assert response.json()[0]["label"] == "person"
+
+    response = client.get("/api/v1/detections", params={"camera_id": camera["id"]})
     assert response.status_code == 200
     payload = response.json()
     assert payload[0]["label"] == "person"
+    assert payload[0]["camera_id"] == camera["id"]
+
+
+def test_detection_requires_existing_camera(client: TestClient) -> None:
+    response = client.post(
+        "/api/v1/detections",
+        json={"camera_id": 999, "label": "person", "confidence": 0.9},
+    )
+    assert response.status_code == 404
 
 
 def test_alerts_endpoint(client: TestClient) -> None:
