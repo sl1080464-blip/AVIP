@@ -157,6 +157,49 @@ def test_auth_register_and_login(client: TestClient) -> None:
     assert users.json()[0]["roles"] == ["admin"]
 
 
+def test_admin_can_update_user_status_without_deactivating_self(client: TestClient) -> None:
+    admin = client.post(
+        "/api/v1/auth/register",
+        json={
+            "username": "admin-status",
+            "email": "admin-status@example.com",
+            "password": "correct horse battery staple",
+        },
+    )
+    member = client.post(
+        "/api/v1/auth/register",
+        json={
+            "username": "member-status",
+            "email": "member-status@example.com",
+            "password": "correct horse battery staple",
+        },
+    )
+    assert admin.status_code == 201
+    assert member.status_code == 201
+
+    app.dependency_overrides.pop(get_current_user)
+    admin_token = admin.json()["access_token"]
+    member_id = client.get(
+        "/api/v1/admin/users",
+        headers={"Authorization": f"Bearer {admin_token}"},
+    ).json()[1]["id"]
+
+    disabled = client.patch(
+        f"/api/v1/admin/users/{member_id}/status",
+        headers={"Authorization": f"Bearer {admin_token}"},
+        json={"is_active": False},
+    )
+    assert disabled.status_code == 200
+    assert disabled.json()["is_active"] is False
+
+    self_disable = client.patch(
+        "/api/v1/admin/users/1/status",
+        headers={"Authorization": f"Bearer {admin_token}"},
+        json={"is_active": False},
+    )
+    assert self_disable.status_code == 400
+
+
 def test_camera_creation_requires_authentication(client: TestClient) -> None:
     app.dependency_overrides.pop(get_current_user)
     response = client.post(

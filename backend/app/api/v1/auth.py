@@ -37,6 +37,10 @@ class TokenResponse(BaseModel):
     token_type: str = "bearer"
 
 
+class UserStatusUpdate(BaseModel):
+    is_active: bool
+
+
 @router.post("/auth/register", response_model=TokenResponse, status_code=status.HTTP_201_CREATED)
 def register(payload: RegisterRequest, db: DatabaseSession) -> TokenResponse:
     existing = db.scalar(
@@ -98,3 +102,32 @@ def list_users(
         }
         for user in users
     ]
+
+
+@router.patch("/admin/users/{user_id}/status")
+def update_user_status(
+    user_id: int,
+    payload: UserStatusUpdate,
+    db: DatabaseSession,
+    admin: Annotated[User, Depends(get_current_admin)],
+) -> dict[str, object]:
+    if user_id == admin.id and not payload.is_active:
+        raise HTTPException(
+            status_code=status.HTTP_400_BAD_REQUEST,
+            detail="Administrators cannot deactivate themselves.",
+        )
+
+    user = db.get(User, user_id)
+    if user is None:
+        raise HTTPException(status_code=status.HTTP_404_NOT_FOUND, detail="User not found.")
+
+    user.is_active = payload.is_active
+    db.commit()
+    db.refresh(user)
+    return {
+        "id": user.id,
+        "username": user.username,
+        "email": user.email,
+        "is_active": user.is_active,
+        "roles": [role.name for role in user.roles],
+    }
