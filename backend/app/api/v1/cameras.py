@@ -19,6 +19,13 @@ class CameraCreate(BaseModel):
     description: str | None = None
 
 
+class CameraUpdate(BaseModel):
+    name: str | None = Field(default=None, min_length=1, max_length=120)
+    stream_url: str | None = Field(default=None, min_length=1, max_length=255)
+    status: str | None = Field(default=None, min_length=1, max_length=30)
+    description: str | None = None
+
+
 class CameraResponse(CameraCreate):
     model_config = ConfigDict(from_attributes=True)
 
@@ -64,3 +71,46 @@ def get_camera(camera_id: int, db: DatabaseSession) -> Camera:
     if camera is None:
         raise HTTPException(status_code=status.HTTP_404_NOT_FOUND, detail="Camera not found.")
     return camera
+
+
+@router.patch("/cameras/{camera_id}", response_model=CameraResponse)
+def update_camera(
+    camera_id: int,
+    payload: CameraUpdate,
+    db: DatabaseSession,
+    _: Annotated[User, Depends(get_current_user)],
+) -> Camera:
+    camera = db.get(Camera, camera_id)
+    if camera is None:
+        raise HTTPException(status_code=status.HTTP_404_NOT_FOUND, detail="Camera not found.")
+
+    for field, value in payload.model_dump(exclude_unset=True).items():
+        setattr(camera, field, value)
+    try:
+        db.commit()
+    except IntegrityError as exc:
+        db.rollback()
+        raise HTTPException(
+            status_code=status.HTTP_409_CONFLICT,
+            detail="A camera with this name already exists.",
+        ) from exc
+    db.refresh(camera)
+    return camera
+
+
+@router.delete("/cameras/{camera_id}", status_code=status.HTTP_204_NO_CONTENT)
+def delete_camera(
+    camera_id: int,
+    db: DatabaseSession,
+    _: Annotated[User, Depends(get_current_user)],
+) -> None:
+    camera = db.get(Camera, camera_id)
+    if camera is None:
+        raise HTTPException(status_code=status.HTTP_404_NOT_FOUND, detail="Camera not found.")
+    if camera.zones or camera.detections or camera.events:
+        raise HTTPException(
+            status_code=status.HTTP_409_CONFLICT,
+            detail="Camera cannot be deleted while it has related data.",
+        )
+    db.delete(camera)
+    db.commit()

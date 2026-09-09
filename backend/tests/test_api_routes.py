@@ -59,6 +59,36 @@ def test_duplicate_camera_name_returns_conflict(client: TestClient) -> None:
     assert response.status_code == 409
 
 
+def test_camera_can_be_updated_and_deleted(client: TestClient) -> None:
+    camera = client.post(
+        "/api/v1/cameras",
+        json={"name": "Lifecycle Camera", "stream_url": "rtsp://camera-lifecycle/stream"},
+    ).json()
+
+    updated = client.patch(
+        f"/api/v1/cameras/{camera['id']}",
+        json={"name": "Updated Camera", "status": "offline"},
+    )
+    assert updated.status_code == 200
+    assert updated.json()["name"] == "Updated Camera"
+    assert updated.json()["status"] == "offline"
+
+    deleted = client.delete(f"/api/v1/cameras/{camera['id']}")
+    assert deleted.status_code == 204
+    assert client.get(f"/api/v1/cameras/{camera['id']}").status_code == 404
+
+
+def test_camera_with_related_data_cannot_be_deleted(client: TestClient) -> None:
+    camera = client.post(
+        "/api/v1/cameras",
+        json={"name": "Referenced Camera", "stream_url": "rtsp://camera-referenced/stream"},
+    ).json()
+    client.post("/api/v1/detections/demo", params={"camera_id": camera["id"]})
+
+    response = client.delete(f"/api/v1/cameras/{camera['id']}")
+    assert response.status_code == 409
+
+
 def test_detections_endpoint(client: TestClient) -> None:
     camera = client.post(
         "/api/v1/cameras",
