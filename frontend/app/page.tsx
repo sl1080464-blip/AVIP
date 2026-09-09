@@ -19,6 +19,15 @@ type CurrentUser = {
   id: number;
   username: string;
   email: string;
+  roles: string[];
+};
+
+type ManagedUser = {
+  id: number;
+  username: string;
+  email: string;
+  is_active: boolean;
+  roles: string[];
 };
 
 const configuredApiUrl = process.env.NEXT_PUBLIC_API_URL ?? "http://localhost:8000";
@@ -31,6 +40,7 @@ export default function HomePage() {
   const [detectionCount, setDetectionCount] = useState(0);
   const [alerts, setAlerts] = useState<Alert[]>([]);
   const [currentUser, setCurrentUser] = useState<CurrentUser | null>(null);
+  const [managedUsers, setManagedUsers] = useState<ManagedUser[]>([]);
   const [username, setUsername] = useState("");
   const [email, setEmail] = useState("");
   const [password, setPassword] = useState("");
@@ -70,7 +80,14 @@ export default function HomePage() {
         headers: { Authorization: `Bearer ${token}` },
       });
       if (response.ok) {
-        setCurrentUser(await response.json());
+        const user: CurrentUser = await response.json();
+        setCurrentUser(user);
+        if (user.roles.includes("admin")) {
+          const usersResponse = await fetch(`${apiRoot}/admin/users`, {
+            headers: { Authorization: `Bearer ${token}` },
+          });
+          if (usersResponse.ok) setManagedUsers(await usersResponse.json());
+        }
       } else {
         window.sessionStorage.removeItem("avip_access_token");
       }
@@ -103,7 +120,14 @@ export default function HomePage() {
         headers: { Authorization: `Bearer ${accessToken}` },
       });
       if (!meResponse.ok) throw new Error("Unable to load the signed-in user.");
-      setCurrentUser(await meResponse.json());
+      const user: CurrentUser = await meResponse.json();
+      setCurrentUser(user);
+      if (user.roles.includes("admin")) {
+        const usersResponse = await fetch(`${apiRoot}/admin/users`, {
+          headers: { Authorization: `Bearer ${accessToken}` },
+        });
+        if (usersResponse.ok) setManagedUsers(await usersResponse.json());
+      }
       setPassword("");
       setEmail("");
     } catch (signInError) {
@@ -116,6 +140,28 @@ export default function HomePage() {
   function signOut() {
     window.sessionStorage.removeItem("avip_access_token");
     setCurrentUser(null);
+    setManagedUsers([]);
+  }
+
+  async function toggleUserStatus(user: ManagedUser) {
+    const token = window.sessionStorage.getItem("avip_access_token");
+    if (!token) return;
+    const response = await fetch(`${apiRoot}/admin/users/${user.id}/status`, {
+      method: "PATCH",
+      headers: {
+        Authorization: `Bearer ${token}`,
+        "Content-Type": "application/json",
+      },
+      body: JSON.stringify({ is_active: !user.is_active }),
+    });
+    if (response.ok) {
+      const updatedUser: ManagedUser = await response.json();
+      setManagedUsers((users) =>
+        users.map((item) => (item.id === updatedUser.id ? updatedUser : item)),
+      );
+    } else {
+      setAuthError("Unable to update this account.");
+    }
   }
 
   return (
@@ -202,6 +248,35 @@ export default function HomePage() {
             </form>
           )}
         </section>
+
+        {currentUser?.roles.includes("admin") ? (
+          <section className="mt-10 rounded-2xl border border-slate-800 bg-slate-900/80 p-6">
+            <h2 className="text-lg font-semibold">User administration</h2>
+            <div className="mt-4 grid gap-3">
+              {managedUsers.map((user) => (
+                <div
+                  key={user.id}
+                  className="flex flex-wrap items-center justify-between gap-3 rounded-xl bg-slate-800/70 p-4"
+                >
+                  <div>
+                    <p className="font-medium">{user.username}</p>
+                    <p className="text-sm text-slate-400">
+                      {user.email} · {user.roles.join(", ") || "user"}
+                    </p>
+                  </div>
+                  <button
+                    type="button"
+                    onClick={() => void toggleUserStatus(user)}
+                    disabled={user.id === currentUser.id}
+                    className="rounded-lg border border-slate-700 px-3 py-2 text-sm text-slate-200 disabled:cursor-not-allowed disabled:opacity-50"
+                  >
+                    {user.is_active ? "Deactivate" : "Activate"}
+                  </button>
+                </div>
+              ))}
+            </div>
+          </section>
+        ) : null}
 
         <div className="mt-10 grid gap-4 sm:grid-cols-3">
           {[

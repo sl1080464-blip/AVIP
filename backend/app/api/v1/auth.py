@@ -83,7 +83,12 @@ def login(payload: LoginRequest, db: DatabaseSession) -> TokenResponse:
 
 @router.get("/auth/me")
 def me(user: Annotated[User, Depends(get_current_user)]) -> dict[str, object]:
-    return {"id": user.id, "username": user.username, "email": user.email}
+    return {
+        "id": user.id,
+        "username": user.username,
+        "email": user.email,
+        "roles": [role.name for role in user.roles],
+    }
 
 
 @router.get("/admin/users")
