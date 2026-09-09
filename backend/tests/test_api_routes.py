@@ -89,6 +89,37 @@ def test_camera_with_related_data_cannot_be_deleted(client: TestClient) -> None:
     assert response.status_code == 409
 
 
+def test_zone_lifecycle_and_camera_validation(client: TestClient) -> None:
+    camera = client.post(
+        "/api/v1/cameras",
+        json={"name": "Zone Camera", "stream_url": "rtsp://camera-zone/stream"},
+    ).json()
+    zone = client.post(
+        "/api/v1/zones",
+        json={"camera_id": camera["id"], "name": "Entrance", "polygon": "[[0,0],[1,1]]"},
+    )
+    assert zone.status_code == 201
+    zone_id = zone.json()["id"]
+
+    duplicate = client.post(
+        "/api/v1/zones",
+        json={"camera_id": camera["id"], "name": "Entrance"},
+    )
+    assert duplicate.status_code == 409
+
+    updated = client.patch(f"/api/v1/zones/{zone_id}", json={"name": "Main Entrance"})
+    assert updated.status_code == 200
+    assert updated.json()["name"] == "Main Entrance"
+    zones = client.get("/api/v1/zones", params={"camera_id": camera["id"]}).json()
+    assert zones[0]["id"] == zone_id
+    assert client.delete(f"/api/v1/zones/{zone_id}").status_code == 204
+
+
+def test_zone_requires_existing_camera(client: TestClient) -> None:
+    response = client.post("/api/v1/zones", json={"camera_id": 999, "name": "Unknown"})
+    assert response.status_code == 404
+
+
 def test_detections_endpoint(client: TestClient) -> None:
     camera = client.post(
         "/api/v1/cameras",

@@ -8,6 +8,7 @@ from backend.app.api.v1.detections import router as detections_router
 from backend.app.api.v1.events import router as events_router
 from backend.app.api.v1.health import router as health_router
 from backend.app.api.v1.tracks import router as tracks_router
+from backend.app.api.v1.zones import router as zones_router
 from backend.app.core.config import get_settings
 
 app = FastAPI(
@@ -32,6 +33,7 @@ app.include_router(detections_router, prefix="/api/v1")
 app.include_router(events_router, prefix="/api/v1")
 app.include_router(alerts_router, prefix="/api/v1")
 app.include_router(tracks_router, prefix="/api/v1")
+app.include_router(zones_router, prefix="/api/v1")
 
 
 @app.get("/")
