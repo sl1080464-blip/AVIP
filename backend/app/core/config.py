@@ -13,6 +13,7 @@ class Settings(BaseSettings):
     LOG_LEVEL: str = Field(default="INFO")
     MODEL_PATH: str = Field(default="/models")
     VIDEO_SOURCE: str = Field(default="rtsp://example-stream:8554/stream")
+    CORS_ORIGINS: str = Field(default="http://localhost:3000")
     AUTH_SECRET_KEY: str = Field(
         default="avip-development-secret-change-in-production",
         min_length=32,
