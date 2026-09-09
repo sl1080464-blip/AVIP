@@ -32,7 +32,9 @@ export default function HomePage() {
   const [alerts, setAlerts] = useState<Alert[]>([]);
   const [currentUser, setCurrentUser] = useState<CurrentUser | null>(null);
   const [username, setUsername] = useState("");
+  const [email, setEmail] = useState("");
   const [password, setPassword] = useState("");
+  const [authMode, setAuthMode] = useState<"login" | "register">("login");
   const [authError, setAuthError] = useState<string | null>(null);
   const [isSigningIn, setIsSigningIn] = useState(false);
   const [error, setError] = useState<string | null>(null);
@@ -78,18 +80,22 @@ export default function HomePage() {
     void loadCurrentUser();
   }, []);
 
-  async function signIn(event: FormEvent<HTMLFormElement>) {
+  async function submitAuth(event: FormEvent<HTMLFormElement>) {
     event.preventDefault();
     setAuthError(null);
     setIsSigningIn(true);
     try {
-      const response = await fetch(`${apiRoot}/auth/login`, {
+      const response = await fetch(`${apiRoot}/auth/${authMode}`, {
         method: "POST",
         headers: { "Content-Type": "application/json" },
-        body: JSON.stringify({ username, password }),
+        body: JSON.stringify(
+          authMode === "register" ? { username, email, password } : { username, password },
+        ),
       });
       if (!response.ok) {
-        throw new Error("Invalid username or password.");
+        const body = await response.json().catch(() => null);
+        const detail = typeof body?.detail === "string" ? body.detail : null;
+        throw new Error(detail ?? (authMode === "register" ? "Unable to create account." : "Invalid username or password."));
       }
       const { access_token: accessToken } = await response.json();
       window.sessionStorage.setItem("avip_access_token", accessToken);
@@ -99,6 +105,7 @@ export default function HomePage() {
       if (!meResponse.ok) throw new Error("Unable to load the signed-in user.");
       setCurrentUser(await meResponse.json());
       setPassword("");
+      setEmail("");
     } catch (signInError) {
       setAuthError(signInError instanceof Error ? signInError.message : "Unable to sign in.");
     } finally {
@@ -141,7 +148,7 @@ export default function HomePage() {
               </button>
             </div>
           ) : (
-            <form onSubmit={signIn} className="grid gap-3 sm:grid-cols-[1fr_1fr_auto] sm:items-end">
+            <form onSubmit={submitAuth} className="grid gap-3 sm:grid-cols-[1fr_1fr_auto] sm:items-end">
               <label className="text-sm text-slate-300">
                 Username
                 <input
@@ -151,6 +158,18 @@ export default function HomePage() {
                   required
                 />
               </label>
+              {authMode === "register" ? (
+                <label className="text-sm text-slate-300">
+                  Email
+                  <input
+                    type="email"
+                    value={email}
+                    onChange={(event) => setEmail(event.target.value)}
+                    className="mt-1 w-full rounded-lg border border-slate-700 bg-slate-950 px-3 py-2 text-slate-100"
+                    required
+                  />
+                </label>
+              ) : null}
               <label className="text-sm text-slate-300">
                 Password
                 <input
@@ -158,6 +177,7 @@ export default function HomePage() {
                   value={password}
                   onChange={(event) => setPassword(event.target.value)}
                   className="mt-1 w-full rounded-lg border border-slate-700 bg-slate-950 px-3 py-2 text-slate-100"
+                  minLength={authMode === "register" ? 12 : undefined}
                   required
                 />
               </label>
@@ -166,7 +186,17 @@ export default function HomePage() {
                 disabled={isSigningIn}
                 className="rounded-lg bg-cyan-500 px-4 py-2 font-medium text-slate-950 disabled:cursor-not-allowed disabled:opacity-60"
               >
-                {isSigningIn ? "Signing in..." : "Sign in"}
+                {isSigningIn ? "Please wait..." : authMode === "register" ? "Create account" : "Sign in"}
+              </button>
+              <button
+                type="button"
+                onClick={() => {
+                  setAuthMode(authMode === "login" ? "register" : "login");
+                  setAuthError(null);
+                }}
+                className="text-left text-sm text-cyan-300 hover:text-cyan-200 sm:col-span-3"
+              >
+                {authMode === "login" ? "Need an account? Register" : "Already have an account? Sign in"}
               </button>
               {authError ? <p className="text-sm text-amber-300 sm:col-span-3">{authError}</p> : null}
             </form>
