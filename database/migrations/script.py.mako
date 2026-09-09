@@ -1,12 +1,17 @@
-"""Auto-generated migration script."""
+"""${message}
+
+Revision ID: ${up_revision}
+Revises: ${down_revision | comma,n}
+"""
 from alembic import op
 import sqlalchemy as sa
+${imports if imports else ""}
 
 # revision identifiers, used by Alembic.
-revision = '${_alembic_revision}'
-down_revision = ${repr(_alembic_down_revision)}
-branch_labels = ${repr(_alembic_branch_labels)}
-depends_on = ${repr(_alembic_depends_on)}
+revision = ${repr(up_revision)}
+down_revision = ${repr(down_revision)}
+branch_labels = ${repr(branch_labels)}
+depends_on = ${repr(depends_on)}
 
 
 def upgrade():

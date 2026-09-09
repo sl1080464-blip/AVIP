@@ -6,6 +6,8 @@ from alembic import context
 from sqlalchemy import engine_from_config, pool
 
 from backend.app.core.config import get_settings
+from backend.app.db.base import Base
+import backend.app.models  # noqa: F401
 
 config = context.config
 
@@ -15,11 +17,9 @@ if config.config_file_name is not None:
 settings = get_settings()
 config.set_main_option("sqlalchemy.url", settings.DATABASE_URL)
 
-# target metadata: import the Base metadata from the app so Alembic can autogenerate
-from backend.app.db.base import Base
-
 # provide the application's metadata to Alembic
 target_metadata = Base.metadata
+
 
 def run_migrations_offline() -> None:
     url = config.get_main_option("sqlalchemy.url")
