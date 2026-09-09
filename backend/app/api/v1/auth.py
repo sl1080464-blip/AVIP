@@ -2,17 +2,19 @@ from typing import Annotated
 
 from fastapi import APIRouter, Depends, HTTPException, status
 from pydantic import BaseModel, Field
-from sqlalchemy import or_, select
+from sqlalchemy import func, or_, select
 from sqlalchemy.exc import IntegrityError
 from sqlalchemy.orm import Session
 
 from backend.app.core.security import (
     create_access_token,
+    get_current_admin,
     get_current_user,
     hash_password,
     verify_password,
 )
 from backend.app.db.session import get_db
+from backend.app.models.role import Role
 from backend.app.models.user import User
 
 router = APIRouter(tags=["auth"])
@@ -48,6 +50,8 @@ def register(payload: RegisterRequest, db: DatabaseSession) -> TokenResponse:
         email=payload.email,
         password_hash=hash_password(payload.password),
     )
+    if db.scalar(select(func.count(User.id))) == 0:
+        user.roles.append(Role(name="admin", description="Platform administrator"))
     db.add(user)
     try:
         db.commit()
@@ -76,3 +80,21 @@ def login(payload: LoginRequest, db: DatabaseSession) -> TokenResponse:
 @router.get("/auth/me")
 def me(user: Annotated[User, Depends(get_current_user)]) -> dict[str, object]:
     return {"id": user.id, "username": user.username, "email": user.email}
+
+
+@router.get("/admin/users")
+def list_users(
+    db: DatabaseSession,
+    _: Annotated[User, Depends(get_current_admin)],
+) -> list[dict[str, object]]:
+    users = db.scalars(select(User).order_by(User.id))
+    return [
+        {
+            "id": user.id,
+            "username": user.username,
+            "email": user.email,
+            "is_active": user.is_active,
+            "roles": [role.name for role in user.roles],
+        }
+        for user in users
+    ]

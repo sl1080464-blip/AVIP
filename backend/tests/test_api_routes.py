@@ -150,6 +150,12 @@ def test_auth_register_and_login(client: TestClient) -> None:
     )
     assert invalid_login.status_code == 401
 
+    app.dependency_overrides.pop(get_current_user)
+    admin_token = login.json()["access_token"]
+    users = client.get("/api/v1/admin/users", headers={"Authorization": f"Bearer {admin_token}"})
+    assert users.status_code == 200
+    assert users.json()[0]["roles"] == ["admin"]
+
 
 def test_camera_creation_requires_authentication(client: TestClient) -> None:
     app.dependency_overrides.pop(get_current_user)
