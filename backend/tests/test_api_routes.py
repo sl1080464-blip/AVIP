@@ -120,3 +120,29 @@ def test_event_requires_existing_camera(client: TestClient) -> None:
         json={"camera_id": 999, "event_type": "person_detected"},
     )
     assert response.status_code == 404
+
+
+def test_tracks_can_be_created_filtered_and_closed(client: TestClient) -> None:
+    camera = client.post(
+        "/api/v1/cameras",
+        json={"name": "Tracking Camera", "stream_url": "rtsp://camera-track/stream"},
+    ).json()
+    created = client.post(
+        "/api/v1/tracks",
+        json={
+            "camera_id": camera["id"],
+            "track_id": "track-001",
+            "label": "person",
+        },
+    )
+    assert created.status_code == 201
+    assert created.json()["status"] == "active"
+
+    active = client.get("/api/v1/tracks", params={"active_only": True})
+    assert active.status_code == 200
+    assert len(active.json()) == 1
+
+    closed = client.post("/api/v1/tracks/track-001/close")
+    assert closed.status_code == 200
+    assert closed.json()["status"] == "closed"
+    assert closed.json()["ended_at"] is not None
