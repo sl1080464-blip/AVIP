@@ -5,9 +5,11 @@ from pydantic import BaseModel, ConfigDict, Field
 from sqlalchemy import select
 from sqlalchemy.orm import Session
 
+from backend.app.core.security import get_current_user
 from backend.app.db.session import get_db
 from backend.app.models.camera import Camera
 from backend.app.models.detection import Detection
+from backend.app.models.user import User
 from backend.app.services.detection_service import DetectionService
 
 router = APIRouter(tags=["detections"])
@@ -48,7 +50,11 @@ def list_detections(
     response_model=DetectionResponse,
     status_code=status.HTTP_201_CREATED,
 )
-def create_detection(payload: DetectionCreate, db: DatabaseSession) -> Detection:
+def create_detection(
+    payload: DetectionCreate,
+    db: DatabaseSession,
+    _: Annotated[User, Depends(get_current_user)],
+) -> Detection:
     if db.get(Camera, payload.camera_id) is None:
         raise HTTPException(status_code=status.HTTP_404_NOT_FOUND, detail="Camera not found.")
 
@@ -64,7 +70,11 @@ def create_detection(payload: DetectionCreate, db: DatabaseSession) -> Detection
     response_model=list[DetectionResponse],
     status_code=status.HTTP_201_CREATED,
 )
-def create_demo_detections(camera_id: int, db: DatabaseSession) -> list[Detection]:
+def create_demo_detections(
+    camera_id: int,
+    db: DatabaseSession,
+    _: Annotated[User, Depends(get_current_user)],
+) -> list[Detection]:
     if db.get(Camera, camera_id) is None:
         raise HTTPException(status_code=status.HTTP_404_NOT_FOUND, detail="Camera not found.")
 

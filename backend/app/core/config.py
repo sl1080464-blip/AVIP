@@ -13,6 +13,11 @@ class Settings(BaseSettings):
     LOG_LEVEL: str = Field(default="INFO")
     MODEL_PATH: str = Field(default="/models")
     VIDEO_SOURCE: str = Field(default="rtsp://example-stream:8554/stream")
+    AUTH_SECRET_KEY: str = Field(
+        default="avip-development-secret-change-in-production",
+        min_length=32,
+    )
+    ACCESS_TOKEN_EXPIRE_MINUTES: int = Field(default=60, gt=0, le=1440)
 
     model_config = SettingsConfigDict(
         env_file=".env",

@@ -6,8 +6,10 @@ from sqlalchemy import select
 from sqlalchemy.exc import IntegrityError
 from sqlalchemy.orm import Session
 
+from backend.app.core.security import get_current_user
 from backend.app.db.session import get_db
 from backend.app.models.camera import Camera
+from backend.app.models.user import User
 
 
 class CameraCreate(BaseModel):
@@ -37,7 +39,11 @@ def list_cameras(db: DatabaseSession) -> list[Camera]:
     response_model=CameraResponse,
     status_code=status.HTTP_201_CREATED,
 )
-def create_camera(payload: CameraCreate, db: DatabaseSession) -> Camera:
+def create_camera(
+    payload: CameraCreate,
+    db: DatabaseSession,
+    _: Annotated[User, Depends(get_current_user)],
+) -> Camera:
     camera = Camera(**payload.model_dump())
     db.add(camera)
     try:

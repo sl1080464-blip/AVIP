@@ -1,5 +1,6 @@
 import backend.app.models  # noqa: F401
 import pytest
+from backend.app.core.security import get_current_user
 from backend.app.db.base import Base
 from backend.app.db.session import get_db
 from backend.app.main import app
@@ -27,6 +28,7 @@ def client() -> TestClient:
             db.close()
 
     app.dependency_overrides[get_db] = override_get_db
+    app.dependency_overrides[get_current_user] = lambda: None
     with TestClient(app) as test_client:
         yield test_client
     app.dependency_overrides.clear()
@@ -120,6 +122,42 @@ def test_event_requires_existing_camera(client: TestClient) -> None:
         json={"camera_id": 999, "event_type": "person_detected"},
     )
     assert response.status_code == 404
+
+
+def test_auth_register_and_login(client: TestClient) -> None:
+    registration = client.post(
+        "/api/v1/auth/register",
+        json={
+            "username": "operator",
+            "email": "operator@example.com",
+            "password": "correct horse battery staple",
+        },
+    )
+    assert registration.status_code == 201
+    assert registration.json()["token_type"] == "bearer"
+    assert registration.json()["access_token"]
+
+    login = client.post(
+        "/api/v1/auth/login",
+        json={"username": "operator", "password": "correct horse battery staple"},
+    )
+    assert login.status_code == 200
+    assert login.json()["access_token"]
+
+    invalid_login = client.post(
+        "/api/v1/auth/login",
+        json={"username": "operator", "password": "wrong password"},
+    )
+    assert invalid_login.status_code == 401
+
+
+def test_camera_creation_requires_authentication(client: TestClient) -> None:
+    app.dependency_overrides.pop(get_current_user)
+    response = client.post(
+        "/api/v1/cameras",
+        json={"name": "Protected Camera", "stream_url": "rtsp://camera-protected/stream"},
+    )
+    assert response.status_code == 401
 
 
 def test_tracks_can_be_created_filtered_and_closed(client: TestClient) -> None:

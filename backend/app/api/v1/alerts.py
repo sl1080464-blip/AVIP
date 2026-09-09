@@ -5,9 +5,11 @@ from pydantic import BaseModel, ConfigDict, Field
 from sqlalchemy import select
 from sqlalchemy.orm import Session
 
+from backend.app.core.security import get_current_user
 from backend.app.db.session import get_db
 from backend.app.models.alert import Alert
 from backend.app.models.event import Event
+from backend.app.models.user import User
 
 router = APIRouter(tags=["alerts"])
 DatabaseSession = Annotated[Session, Depends(get_db)]
@@ -36,7 +38,11 @@ def list_alerts(db: DatabaseSession) -> list[Alert]:
     response_model=AlertResponse,
     status_code=status.HTTP_201_CREATED,
 )
-def create_alert(payload: AlertCreate, db: DatabaseSession) -> Alert:
+def create_alert(
+    payload: AlertCreate,
+    db: DatabaseSession,
+    _: Annotated[User, Depends(get_current_user)],
+) -> Alert:
     if db.get(Event, payload.event_id) is None:
         raise HTTPException(status_code=status.HTTP_404_NOT_FOUND, detail="Event not found.")
 
@@ -48,7 +54,11 @@ def create_alert(payload: AlertCreate, db: DatabaseSession) -> Alert:
 
 
 @router.post("/alerts/{alert_id}/acknowledge", response_model=AlertResponse)
-def acknowledge_alert(alert_id: int, db: DatabaseSession) -> Alert:
+def acknowledge_alert(
+    alert_id: int,
+    db: DatabaseSession,
+    _: Annotated[User, Depends(get_current_user)],
+) -> Alert:
     alert = db.get(Alert, alert_id)
     if alert is None:
         raise HTTPException(status_code=status.HTTP_404_NOT_FOUND, detail="Alert not found.")

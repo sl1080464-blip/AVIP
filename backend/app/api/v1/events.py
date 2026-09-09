@@ -5,9 +5,11 @@ from pydantic import BaseModel, ConfigDict, Field
 from sqlalchemy import select
 from sqlalchemy.orm import Session
 
+from backend.app.core.security import get_current_user
 from backend.app.db.session import get_db
 from backend.app.models.camera import Camera
 from backend.app.models.event import Event
+from backend.app.models.user import User
 
 router = APIRouter(tags=["events"])
 DatabaseSession = Annotated[Session, Depends(get_db)]
@@ -52,7 +54,11 @@ def list_events(
     response_model=EventResponse,
     status_code=status.HTTP_201_CREATED,
 )
-def create_event(payload: EventCreate, db: DatabaseSession) -> EventResponse:
+def create_event(
+    payload: EventCreate,
+    db: DatabaseSession,
+    _: Annotated[User, Depends(get_current_user)],
+) -> EventResponse:
     if db.get(Camera, payload.camera_id) is None:
         raise HTTPException(status_code=status.HTTP_404_NOT_FOUND, detail="Camera not found.")
 

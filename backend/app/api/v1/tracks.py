@@ -7,9 +7,11 @@ from sqlalchemy import select
 from sqlalchemy.exc import IntegrityError
 from sqlalchemy.orm import Session
 
+from backend.app.core.security import get_current_user
 from backend.app.db.session import get_db
 from backend.app.models.camera import Camera
 from backend.app.models.track import Track
+from backend.app.models.user import User
 
 router = APIRouter(tags=["tracks"])
 DatabaseSession = Annotated[Session, Depends(get_db)]
@@ -49,7 +51,11 @@ def list_tracks(
     response_model=TrackResponse,
     status_code=status.HTTP_201_CREATED,
 )
-def create_track(payload: TrackCreate, db: DatabaseSession) -> Track:
+def create_track(
+    payload: TrackCreate,
+    db: DatabaseSession,
+    _: Annotated[User, Depends(get_current_user)],
+) -> Track:
     if db.get(Camera, payload.camera_id) is None:
         raise HTTPException(status_code=status.HTTP_404_NOT_FOUND, detail="Camera not found.")
 
@@ -68,7 +74,11 @@ def create_track(payload: TrackCreate, db: DatabaseSession) -> Track:
 
 
 @router.post("/tracks/{track_id}/close", response_model=TrackResponse)
-def close_track(track_id: str, db: DatabaseSession) -> Track:
+def close_track(
+    track_id: str,
+    db: DatabaseSession,
+    _: Annotated[User, Depends(get_current_user)],
+) -> Track:
     track = db.scalar(select(Track).where(Track.track_id == track_id))
     if track is None:
         raise HTTPException(status_code=status.HTTP_404_NOT_FOUND, detail="Track not found.")
