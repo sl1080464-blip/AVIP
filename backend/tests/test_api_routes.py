@@ -85,7 +85,38 @@ def test_detection_requires_existing_camera(client: TestClient) -> None:
 
 
 def test_alerts_endpoint(client: TestClient) -> None:
+    camera = client.post(
+        "/api/v1/cameras",
+        json={"name": "Alert Camera", "stream_url": "rtsp://camera-alert/stream"},
+    ).json()
+    event = client.post(
+        "/api/v1/events",
+        json={
+            "camera_id": camera["id"],
+            "event_type": "person_detected",
+            "confidence": 0.94,
+            "metadata": {"zone": "entrance"},
+        },
+    ).json()
+    created = client.post(
+        "/api/v1/alerts",
+        json={"event_id": event["id"], "message": "Person detected."},
+    )
+    assert created.status_code == 201
+    assert created.json()["acknowledged"] is False
+
+    acknowledged = client.post(f"/api/v1/alerts/{created.json()['id']}/acknowledge")
+    assert acknowledged.status_code == 200
+    assert acknowledged.json()["acknowledged"] is True
+
     response = client.get("/api/v1/alerts")
     assert response.status_code == 200
-    payload = response.json()
-    assert payload[0]["level"] == "medium"
+    assert response.json()[0]["level"] == "medium"
+
+
+def test_event_requires_existing_camera(client: TestClient) -> None:
+    response = client.post(
+        "/api/v1/events",
+        json={"camera_id": 999, "event_type": "person_detected"},
+    )
+    assert response.status_code == 404
