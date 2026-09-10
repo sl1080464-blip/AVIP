@@ -147,6 +147,55 @@ def test_detection_requires_existing_camera(client: TestClient) -> None:
     assert response.status_code == 404
 
 
+def test_detection_track_must_exist_on_same_camera(client: TestClient) -> None:
+    first_camera = client.post(
+        "/api/v1/cameras",
+        json={"name": "Track Camera One", "stream_url": "rtsp://camera-track-one/stream"},
+    ).json()
+    second_camera = client.post(
+        "/api/v1/cameras",
+        json={"name": "Track Camera Two", "stream_url": "rtsp://camera-track-two/stream"},
+    ).json()
+    track = client.post(
+        "/api/v1/tracks",
+        json={"camera_id": first_camera["id"], "track_id": "linked-track", "label": "person"},
+    )
+    assert track.status_code == 201
+
+    missing = client.post(
+        "/api/v1/detections",
+        json={
+            "camera_id": first_camera["id"],
+            "track_id": "missing-track",
+            "label": "person",
+            "confidence": 0.9,
+        },
+    )
+    assert missing.status_code == 404
+
+    wrong_camera = client.post(
+        "/api/v1/detections",
+        json={
+            "camera_id": second_camera["id"],
+            "track_id": "linked-track",
+            "label": "person",
+            "confidence": 0.9,
+        },
+    )
+    assert wrong_camera.status_code == 409
+
+    linked = client.post(
+        "/api/v1/detections",
+        json={
+            "camera_id": first_camera["id"],
+            "track_id": "linked-track",
+            "label": "person",
+            "confidence": 0.9,
+        },
+    )
+    assert linked.status_code == 201
+
+
 def test_alerts_endpoint(client: TestClient) -> None:
     camera = client.post(
         "/api/v1/cameras",
