@@ -224,6 +224,8 @@ def test_alerts_endpoint(client: TestClient) -> None:
     response = client.get("/api/v1/alerts")
     assert response.status_code == 200
     assert response.json()[0]["level"] == "medium"
+    assert len(client.get("/api/v1/alerts", params={"acknowledged": False}).json()) == 0
+    assert len(client.get("/api/v1/alerts", params={"camera_id": camera["id"]}).json()) == 1
 
 
 def test_event_requires_existing_camera(client: TestClient) -> None:
@@ -232,6 +234,23 @@ def test_event_requires_existing_camera(client: TestClient) -> None:
         json={"camera_id": 999, "event_type": "person_detected"},
     )
     assert response.status_code == 404
+
+
+def test_events_can_be_filtered_by_type(client: TestClient) -> None:
+    camera = client.post(
+        "/api/v1/cameras",
+        json={"name": "Event Filter Camera", "stream_url": "rtsp://camera-event-filter/stream"},
+    ).json()
+    for event_type in ("person_detected", "vehicle_detected"):
+        client.post(
+            "/api/v1/events",
+            json={"camera_id": camera["id"], "event_type": event_type},
+        )
+
+    response = client.get("/api/v1/events", params={"event_type": "person_detected"})
+    assert response.status_code == 200
+    assert len(response.json()) == 1
+    assert response.json()[0]["event_type"] == "person_detected"
 
 
 def test_auth_register_and_login(client: TestClient) -> None:

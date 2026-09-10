@@ -42,10 +42,13 @@ class EventResponse(EventCreate):
 def list_events(
     db: DatabaseSession,
     camera_id: int | None = None,
+    event_type: str | None = None,
 ) -> list[EventResponse]:
     query = select(Event).order_by(Event.id)
     if camera_id is not None:
         query = query.where(Event.camera_id == camera_id)
+    if event_type is not None:
+        query = query.where(Event.event_type == event_type)
     return [EventResponse.from_model(event) for event in db.scalars(query)]
 
 

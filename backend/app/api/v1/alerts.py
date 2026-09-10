@@ -29,8 +29,17 @@ class AlertResponse(AlertCreate):
 
 
 @router.get("/alerts", response_model=list[AlertResponse])
-def list_alerts(db: DatabaseSession) -> list[Alert]:
-    return list(db.scalars(select(Alert).order_by(Alert.id)))
+def list_alerts(
+    db: DatabaseSession,
+    acknowledged: bool | None = None,
+    camera_id: int | None = None,
+) -> list[Alert]:
+    query = select(Alert).join(Event).order_by(Alert.id)
+    if acknowledged is not None:
+        query = query.where(Alert.acknowledged == acknowledged)
+    if camera_id is not None:
+        query = query.where(Event.camera_id == camera_id)
+    return list(db.scalars(query))
 
 
 @router.post(
