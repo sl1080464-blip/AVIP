@@ -16,6 +16,13 @@ type Alert = {
   acknowledged: boolean;
 };
 
+type Zone = {
+  id: number;
+  camera_id: number;
+  name: string;
+  description: string | null;
+};
+
 type CurrentUser = {
   id: number;
   username: string;
@@ -40,6 +47,7 @@ export default function HomePage() {
   const [cameras, setCameras] = useState<Camera[]>([]);
   const [detectionCount, setDetectionCount] = useState(0);
   const [alerts, setAlerts] = useState<Alert[]>([]);
+  const [zones, setZones] = useState<Zone[]>([]);
   const [currentUser, setCurrentUser] = useState<CurrentUser | null>(null);
   const [managedUsers, setManagedUsers] = useState<ManagedUser[]>([]);
   const [cameraName, setCameraName] = useState("");
@@ -71,6 +79,7 @@ export default function HomePage() {
           fetch(`${apiRoot}/cameras`, { headers }),
           fetch(`${apiRoot}/detections`, { headers }),
           fetch(`${apiRoot}/alerts?acknowledged=false`, { headers }),
+          fetch(`${apiRoot}/zones`, { headers }),
         ]);
         if (responses.some((response) => response.status === 401)) {
           clearSession("Your session has expired. Please sign in again.");
@@ -85,6 +94,7 @@ export default function HomePage() {
         setCameras(cameraData);
         setDetectionCount(detectionData.length);
         setAlerts(alertData);
+        setZones(await responses[3].json());
       } catch (loadError) {
         setError(loadError instanceof Error ? loadError.message : "Unable to load dashboard data.");
       }
@@ -420,6 +430,7 @@ export default function HomePage() {
             { title: "Cameras", value: cameras.length.toString() },
             { title: "Detections", value: detectionCount.toString() },
             { title: "Alerts", value: alerts.length.toString() },
+            { title: "Zones", value: zones.length.toString() },
           ].map((card) => (
             <div key={card.title} className="rounded-2xl border border-slate-800 bg-slate-900/80 p-5">
               <p className="text-sm text-slate-400">{card.title}</p>
@@ -453,6 +464,24 @@ export default function HomePage() {
             ))}
             {alerts.length === 0 ? (
               <p className="text-sm text-slate-400">No active alerts.</p>
+            ) : null}
+          </div>
+        </section>
+
+        <section className="mt-10 rounded-2xl border border-slate-800 bg-slate-900/80 p-6">
+          <h2 className="text-lg font-semibold">Configured zones</h2>
+          <div className="mt-4 grid gap-3 sm:grid-cols-2">
+            {zones.map((zone) => (
+              <div key={zone.id} className="rounded-xl bg-slate-800/70 p-4">
+                <p className="font-medium">{zone.name}</p>
+                <p className="text-sm text-slate-400">
+                  {cameras.find((camera) => camera.id === zone.camera_id)?.name ?? `Camera ${zone.camera_id}`}
+                </p>
+                {zone.description ? <p className="mt-1 text-sm text-slate-500">{zone.description}</p> : null}
+              </div>
+            ))}
+            {zones.length === 0 ? (
+              <p className="text-sm text-slate-400">No zones configured.</p>
             ) : null}
           </div>
         </section>
