@@ -5,6 +5,7 @@ import { useEffect, useState, type FormEvent } from "react";
 type Camera = {
   id: number;
   name: string;
+  stream_url: string;
   status: string;
 };
 
@@ -41,6 +42,10 @@ export default function HomePage() {
   const [alerts, setAlerts] = useState<Alert[]>([]);
   const [currentUser, setCurrentUser] = useState<CurrentUser | null>(null);
   const [managedUsers, setManagedUsers] = useState<ManagedUser[]>([]);
+  const [cameraName, setCameraName] = useState("");
+  const [cameraStreamUrl, setCameraStreamUrl] = useState("");
+  const [cameraError, setCameraError] = useState<string | null>(null);
+  const [isCreatingCamera, setIsCreatingCamera] = useState(false);
   const [username, setUsername] = useState("");
   const [email, setEmail] = useState("");
   const [password, setPassword] = useState("");
@@ -194,6 +199,69 @@ export default function HomePage() {
       clearSession("Sign in to acknowledge alerts.");
       return;
     }
+
+    async function createCamera(event: FormEvent<HTMLFormElement>) {
+      event.preventDefault();
+      const token = window.sessionStorage.getItem("avip_access_token");
+      if (!token) {
+        clearSession("Sign in to add cameras.");
+        return;
+      }
+      setCameraError(null);
+      setIsCreatingCamera(true);
+      try {
+        const response = await fetch(`${apiRoot}/cameras`, {
+          method: "POST",
+          headers: {
+            Authorization: `Bearer ${token}`,
+            "Content-Type": "application/json",
+          },
+          body: JSON.stringify({ name: cameraName, stream_url: cameraStreamUrl }),
+        });
+        if (response.status === 401) {
+          clearSession("Your session has expired. Please sign in again.");
+          return;
+        }
+        if (!response.ok) {
+          const body = await response.json().catch(() => null);
+          throw new Error(typeof body?.detail === "string" ? body.detail : "Unable to add camera.");
+        }
+        const created: Camera = await response.json();
+        setCameras((items) => [...items, created]);
+        setCameraName("");
+        setCameraStreamUrl("");
+      } catch (createError) {
+        setCameraError(createError instanceof Error ? createError.message : "Unable to add camera.");
+      } finally {
+        setIsCreatingCamera(false);
+      }
+    }
+
+    async function toggleCameraStatus(camera: Camera) {
+      const token = window.sessionStorage.getItem("avip_access_token");
+      if (!token) {
+        clearSession("Sign in to update cameras.");
+        return;
+      }
+      const response = await fetch(`${apiRoot}/cameras/${camera.id}`, {
+        method: "PATCH",
+        headers: {
+          Authorization: `Bearer ${token}`,
+          "Content-Type": "application/json",
+        },
+        body: JSON.stringify({ status: camera.status === "online" ? "offline" : "online" }),
+      });
+      if (response.status === 401) {
+        clearSession("Your session has expired. Please sign in again.");
+        return;
+      }
+      if (response.ok) {
+        const updated: Camera = await response.json();
+        setCameras((items) => items.map((item) => (item.id === updated.id ? updated : item)));
+      } else {
+        setCameraError("Unable to update this camera.");
+      }
+    }
     const response = await fetch(`${apiRoot}/alerts/${alertId}/acknowledge`, {
       method: "POST",
       headers: { Authorization: `Bearer ${token}` },
@@ -206,6 +274,69 @@ export default function HomePage() {
       setAlerts((items) => items.filter((alert) => alert.id !== alertId));
     } else {
       setError("Unable to acknowledge this alert.");
+    }
+  }
+
+  async function createCamera(event: FormEvent<HTMLFormElement>) {
+    event.preventDefault();
+    const token = window.sessionStorage.getItem("avip_access_token");
+    if (!token) {
+      clearSession("Sign in to add cameras.");
+      return;
+    }
+    setCameraError(null);
+    setIsCreatingCamera(true);
+    try {
+      const response = await fetch(`${apiRoot}/cameras`, {
+        method: "POST",
+        headers: {
+          Authorization: `Bearer ${token}`,
+          "Content-Type": "application/json",
+        },
+        body: JSON.stringify({ name: cameraName, stream_url: cameraStreamUrl }),
+      });
+      if (response.status === 401) {
+        clearSession("Your session has expired. Please sign in again.");
+        return;
+      }
+      if (!response.ok) {
+        const body = await response.json().catch(() => null);
+        throw new Error(typeof body?.detail === "string" ? body.detail : "Unable to add camera.");
+      }
+      const created: Camera = await response.json();
+      setCameras((items) => [...items, created]);
+      setCameraName("");
+      setCameraStreamUrl("");
+    } catch (createError) {
+      setCameraError(createError instanceof Error ? createError.message : "Unable to add camera.");
+    } finally {
+      setIsCreatingCamera(false);
+    }
+  }
+
+  async function toggleCameraStatus(camera: Camera) {
+    const token = window.sessionStorage.getItem("avip_access_token");
+    if (!token) {
+      clearSession("Sign in to update cameras.");
+      return;
+    }
+    const response = await fetch(`${apiRoot}/cameras/${camera.id}`, {
+      method: "PATCH",
+      headers: {
+        Authorization: `Bearer ${token}`,
+        "Content-Type": "application/json",
+      },
+      body: JSON.stringify({ status: camera.status === "online" ? "offline" : "online" }),
+    });
+    if (response.status === 401) {
+      clearSession("Your session has expired. Please sign in again.");
+      return;
+    }
+    if (response.ok) {
+      const updated: Camera = await response.json();
+      setCameras((items) => items.map((item) => (item.id === updated.id ? updated : item)));
+    } else {
+      setCameraError("Unable to update this camera.");
     }
   }
 
@@ -373,11 +504,50 @@ export default function HomePage() {
 
         <section className="mt-10 rounded-2xl border border-slate-800 bg-slate-900/80 p-6">
           <h2 className="text-lg font-semibold">Cameras</h2>
+          {currentUser ? (
+            <form onSubmit={createCamera} className="mt-4 grid gap-3 sm:grid-cols-[1fr_1fr_auto]">
+              <input
+                value={cameraName}
+                onChange={(event) => setCameraName(event.target.value)}
+                placeholder="Camera name"
+                className="rounded-lg border border-slate-700 bg-slate-950 px-3 py-2 text-slate-100"
+                required
+              />
+              <input
+                value={cameraStreamUrl}
+                onChange={(event) => setCameraStreamUrl(event.target.value)}
+                placeholder="rtsp://camera/stream"
+                className="rounded-lg border border-slate-700 bg-slate-950 px-3 py-2 text-slate-100"
+                required
+              />
+              <button
+                type="submit"
+                disabled={isCreatingCamera}
+                className="rounded-lg bg-cyan-500 px-4 py-2 font-medium text-slate-950 disabled:opacity-60"
+              >
+                {isCreatingCamera ? "Adding..." : "Add camera"}
+              </button>
+            </form>
+          ) : null}
+          {cameraError ? <p className="mt-3 text-sm text-amber-300">{cameraError}</p> : null}
           <div className="mt-4 grid gap-3 sm:grid-cols-2">
             {cameras.map((camera) => (
-              <div key={camera.id} className="flex items-center justify-between rounded-xl bg-slate-800/70 p-4">
-                <span>{camera.name}</span>
-                <span className="text-sm text-emerald-300">{camera.status}</span>
+              <div key={camera.id} className="flex items-center justify-between gap-3 rounded-xl bg-slate-800/70 p-4">
+                <div>
+                  <p>{camera.name}</p>
+                  <p className="text-xs text-slate-500">{camera.stream_url}</p>
+                </div>
+                {currentUser ? (
+                  <button
+                    type="button"
+                    onClick={() => void toggleCameraStatus(camera)}
+                    className="text-sm text-emerald-300 hover:text-emerald-200"
+                  >
+                    {camera.status}
+                  </button>
+                ) : (
+                  <span className="text-sm text-emerald-300">{camera.status}</span>
+                )}
               </div>
             ))}
             {cameras.length === 0 && !error ? (
