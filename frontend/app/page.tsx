@@ -49,6 +49,13 @@ export default function HomePage() {
   const [isSigningIn, setIsSigningIn] = useState(false);
   const [error, setError] = useState<string | null>(null);
 
+  function clearSession(message?: string) {
+    window.sessionStorage.removeItem("avip_access_token");
+    setCurrentUser(null);
+    setManagedUsers([]);
+    if (message) setAuthError(message);
+  }
+
   useEffect(() => {
     const token = window.sessionStorage.getItem("avip_access_token");
 
@@ -60,6 +67,10 @@ export default function HomePage() {
           fetch(`${apiRoot}/detections`, { headers }),
           fetch(`${apiRoot}/alerts?acknowledged=false`, { headers }),
         ]);
+        if (responses.some((response) => response.status === 401)) {
+          clearSession("Your session has expired. Please sign in again.");
+          return;
+        }
         if (responses.some((response) => !response.ok)) {
           throw new Error("The AVIP API returned an error.");
         }
@@ -86,10 +97,14 @@ export default function HomePage() {
           const usersResponse = await fetch(`${apiRoot}/admin/users`, {
             headers: { Authorization: `Bearer ${token}` },
           });
+          if (usersResponse.status === 401) {
+            clearSession("Your session has expired. Please sign in again.");
+            return;
+          }
           if (usersResponse.ok) setManagedUsers(await usersResponse.json());
         }
       } else {
-        window.sessionStorage.removeItem("avip_access_token");
+        clearSession("Your session has expired. Please sign in again.");
       }
     }
 
@@ -126,6 +141,10 @@ export default function HomePage() {
         const usersResponse = await fetch(`${apiRoot}/admin/users`, {
           headers: { Authorization: `Bearer ${accessToken}` },
         });
+        if (usersResponse.status === 401) {
+          clearSession("Your session has expired. Please sign in again.");
+          return;
+        }
         if (usersResponse.ok) setManagedUsers(await usersResponse.json());
       }
       setPassword("");
@@ -138,14 +157,15 @@ export default function HomePage() {
   }
 
   function signOut() {
-    window.sessionStorage.removeItem("avip_access_token");
-    setCurrentUser(null);
-    setManagedUsers([]);
+    clearSession();
   }
 
   async function toggleUserStatus(user: ManagedUser) {
     const token = window.sessionStorage.getItem("avip_access_token");
-    if (!token) return;
+    if (!token) {
+      clearSession("Your session has expired. Please sign in again.");
+      return;
+    }
     const response = await fetch(`${apiRoot}/admin/users/${user.id}/status`, {
       method: "PATCH",
       headers: {
@@ -154,6 +174,10 @@ export default function HomePage() {
       },
       body: JSON.stringify({ is_active: !user.is_active }),
     });
+    if (response.status === 401) {
+      clearSession("Your session has expired. Please sign in again.");
+      return;
+    }
     if (response.ok) {
       const updatedUser: ManagedUser = await response.json();
       setManagedUsers((users) =>
