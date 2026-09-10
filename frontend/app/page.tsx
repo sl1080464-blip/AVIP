@@ -58,7 +58,7 @@ export default function HomePage() {
         const responses = await Promise.all([
           fetch(`${apiRoot}/cameras`, { headers }),
           fetch(`${apiRoot}/detections`, { headers }),
-          fetch(`${apiRoot}/alerts`, { headers }),
+          fetch(`${apiRoot}/alerts?acknowledged=false`, { headers }),
         ]);
         if (responses.some((response) => !response.ok)) {
           throw new Error("The AVIP API returned an error.");
@@ -282,7 +282,7 @@ export default function HomePage() {
           {[
             { title: "Cameras", value: cameras.length.toString() },
             { title: "Detections", value: detectionCount.toString() },
-            { title: "Alerts", value: alerts.filter((alert) => !alert.acknowledged).length.toString() },
+            { title: "Alerts", value: alerts.length.toString() },
           ].map((card) => (
             <div key={card.title} className="rounded-2xl border border-slate-800 bg-slate-900/80 p-5">
               <p className="text-sm text-slate-400">{card.title}</p>
