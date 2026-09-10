@@ -278,6 +278,29 @@ export default function HomePage() {
     }
   }
 
+  async function deleteCamera(camera: Camera) {
+    if (!window.confirm(`Delete camera "${camera.name}"?`)) return;
+    const token = window.sessionStorage.getItem("avip_access_token");
+    if (!token) {
+      clearSession("Sign in to delete cameras.");
+      return;
+    }
+    const response = await fetch(`${apiRoot}/cameras/${camera.id}`, {
+      method: "DELETE",
+      headers: { Authorization: `Bearer ${token}` },
+    });
+    if (response.status === 401) {
+      clearSession("Your session has expired. Please sign in again.");
+      return;
+    }
+    if (response.ok) {
+      setCameras((items) => items.filter((item) => item.id !== camera.id));
+    } else {
+      const body = await response.json().catch(() => null);
+      setCameraError(typeof body?.detail === "string" ? body.detail : "Unable to delete this camera.");
+    }
+  }
+
   return (
     <main className="min-h-screen bg-slate-950 text-slate-100">
       <div className="mx-auto max-w-6xl px-6 py-20">
@@ -476,13 +499,22 @@ export default function HomePage() {
                   <p className="text-xs text-slate-500">{camera.stream_url}</p>
                 </div>
                 {currentUser ? (
-                  <button
-                    type="button"
-                    onClick={() => void toggleCameraStatus(camera)}
-                    className="text-sm text-emerald-300 hover:text-emerald-200"
-                  >
-                    {camera.status}
-                  </button>
+                  <div className="flex items-center gap-3">
+                    <button
+                      type="button"
+                      onClick={() => void toggleCameraStatus(camera)}
+                      className="text-sm text-emerald-300 hover:text-emerald-200"
+                    >
+                      {camera.status}
+                    </button>
+                    <button
+                      type="button"
+                      onClick={() => void deleteCamera(camera)}
+                      className="text-sm text-rose-300 hover:text-rose-200"
+                    >
+                      Delete
+                    </button>
+                  </div>
                 ) : (
                   <span className="text-sm text-emerald-300">{camera.status}</span>
                 )}
