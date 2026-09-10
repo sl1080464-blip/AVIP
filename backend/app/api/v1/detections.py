@@ -1,6 +1,6 @@
 from typing import Annotated
 
-from fastapi import APIRouter, Depends, HTTPException, status
+from fastapi import APIRouter, Depends, HTTPException, Query, status
 from pydantic import BaseModel, ConfigDict, Field
 from sqlalchemy import select
 from sqlalchemy.orm import Session
@@ -39,10 +39,16 @@ class DetectionResponse(DetectionCreate):
 def list_detections(
     db: DatabaseSession,
     camera_id: int | None = None,
+    label: str | None = None,
+    min_confidence: float | None = Query(default=None, ge=0.0, le=1.0),
 ) -> list[Detection]:
     query = select(Detection).order_by(Detection.id)
     if camera_id is not None:
         query = query.where(Detection.camera_id == camera_id)
+    if label is not None:
+        query = query.where(Detection.label == label)
+    if min_confidence is not None:
+        query = query.where(Detection.confidence >= min_confidence)
     return list(db.scalars(query))
 
 

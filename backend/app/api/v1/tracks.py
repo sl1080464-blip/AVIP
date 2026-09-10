@@ -37,12 +37,18 @@ def list_tracks(
     db: DatabaseSession,
     camera_id: int | None = None,
     active_only: bool = False,
+    label: str | None = None,
+    status: str | None = None,
 ) -> list[Track]:
     query = select(Track).order_by(Track.id)
     if camera_id is not None:
         query = query.where(Track.camera_id == camera_id)
     if active_only:
         query = query.where(Track.status == "active")
+    if label is not None:
+        query = query.where(Track.label == label)
+    if status is not None:
+        query = query.where(Track.status == status)
     return list(db.scalars(query))
 
 

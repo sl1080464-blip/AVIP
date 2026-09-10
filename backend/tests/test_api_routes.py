@@ -137,6 +137,12 @@ def test_detections_endpoint(client: TestClient) -> None:
     payload = response.json()
     assert payload[0]["label"] == "person"
     assert payload[0]["camera_id"] == camera["id"]
+    assert len(
+        client.get(
+            "/api/v1/detections",
+            params={"label": "person", "min_confidence": 0.9},
+        ).json()
+    ) == 1
 
 
 def test_detection_requires_existing_camera(client: TestClient) -> None:
@@ -357,6 +363,12 @@ def test_tracks_can_be_created_filtered_and_closed(client: TestClient) -> None:
     active = client.get("/api/v1/tracks", params={"active_only": True})
     assert active.status_code == 200
     assert len(active.json()) == 1
+    assert len(
+        client.get(
+            "/api/v1/tracks",
+            params={"label": "person", "status": "active"},
+        ).json()
+    ) == 1
 
     closed = client.post("/api/v1/tracks/track-001/close")
     assert closed.status_code == 200
