@@ -200,68 +200,6 @@ export default function HomePage() {
       return;
     }
 
-    async function createCamera(event: FormEvent<HTMLFormElement>) {
-      event.preventDefault();
-      const token = window.sessionStorage.getItem("avip_access_token");
-      if (!token) {
-        clearSession("Sign in to add cameras.");
-        return;
-      }
-      setCameraError(null);
-      setIsCreatingCamera(true);
-      try {
-        const response = await fetch(`${apiRoot}/cameras`, {
-          method: "POST",
-          headers: {
-            Authorization: `Bearer ${token}`,
-            "Content-Type": "application/json",
-          },
-          body: JSON.stringify({ name: cameraName, stream_url: cameraStreamUrl }),
-        });
-        if (response.status === 401) {
-          clearSession("Your session has expired. Please sign in again.");
-          return;
-        }
-        if (!response.ok) {
-          const body = await response.json().catch(() => null);
-          throw new Error(typeof body?.detail === "string" ? body.detail : "Unable to add camera.");
-        }
-        const created: Camera = await response.json();
-        setCameras((items) => [...items, created]);
-        setCameraName("");
-        setCameraStreamUrl("");
-      } catch (createError) {
-        setCameraError(createError instanceof Error ? createError.message : "Unable to add camera.");
-      } finally {
-        setIsCreatingCamera(false);
-      }
-    }
-
-    async function toggleCameraStatus(camera: Camera) {
-      const token = window.sessionStorage.getItem("avip_access_token");
-      if (!token) {
-        clearSession("Sign in to update cameras.");
-        return;
-      }
-      const response = await fetch(`${apiRoot}/cameras/${camera.id}`, {
-        method: "PATCH",
-        headers: {
-          Authorization: `Bearer ${token}`,
-          "Content-Type": "application/json",
-        },
-        body: JSON.stringify({ status: camera.status === "online" ? "offline" : "online" }),
-      });
-      if (response.status === 401) {
-        clearSession("Your session has expired. Please sign in again.");
-        return;
-      }
-      if (response.ok) {
-        const updated: Camera = await response.json();
-        setCameras((items) => items.map((item) => (item.id === updated.id ? updated : item)));
-      } else {
-        setCameraError("Unable to update this camera.");
-      }
-    }
     const response = await fetch(`${apiRoot}/alerts/${alertId}/acknowledge`, {
       method: "POST",
       headers: { Authorization: `Bearer ${token}` },
