@@ -188,6 +188,27 @@ export default function HomePage() {
     }
   }
 
+  async function acknowledgeAlert(alertId: number) {
+    const token = window.sessionStorage.getItem("avip_access_token");
+    if (!token) {
+      clearSession("Sign in to acknowledge alerts.");
+      return;
+    }
+    const response = await fetch(`${apiRoot}/alerts/${alertId}/acknowledge`, {
+      method: "POST",
+      headers: { Authorization: `Bearer ${token}` },
+    });
+    if (response.status === 401) {
+      clearSession("Your session has expired. Please sign in again.");
+      return;
+    }
+    if (response.ok) {
+      setAlerts((items) => items.filter((alert) => alert.id !== alertId));
+    } else {
+      setError("Unable to acknowledge this alert.");
+    }
+  }
+
   return (
     <main className="min-h-screen bg-slate-950 text-slate-100">
       <div className="mx-auto max-w-6xl px-6 py-20">
@@ -314,6 +335,35 @@ export default function HomePage() {
             </div>
           ))}
         </div>
+
+        <section className="mt-10 rounded-2xl border border-slate-800 bg-slate-900/80 p-6">
+          <h2 className="text-lg font-semibold">Active alerts</h2>
+          <div className="mt-4 grid gap-3">
+            {alerts.map((alert) => (
+              <div
+                key={alert.id}
+                className="flex flex-wrap items-center justify-between gap-3 rounded-xl bg-slate-800/70 p-4"
+              >
+                <div>
+                  <p className="font-medium">{alert.message}</p>
+                  <p className="text-sm capitalize text-amber-300">{alert.level}</p>
+                </div>
+                {currentUser ? (
+                  <button
+                    type="button"
+                    onClick={() => void acknowledgeAlert(alert.id)}
+                    className="rounded-lg border border-slate-700 px-3 py-2 text-sm text-slate-200 hover:bg-slate-700"
+                  >
+                    Acknowledge
+                  </button>
+                ) : null}
+              </div>
+            ))}
+            {alerts.length === 0 ? (
+              <p className="text-sm text-slate-400">No active alerts.</p>
+            ) : null}
+          </div>
+        </section>
 
         {error ? (
           <p className="mt-8 rounded-xl border border-amber-400/30 bg-amber-400/10 p-4 text-amber-200">
